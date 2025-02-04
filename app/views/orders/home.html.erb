@@ -1,0 +1,83 @@
+<div class="container">
+  <h1 class="text-center mt-4">🍕 Welcome to PizzaFactory! 🍕</h1>
+  
+  <!-- Pizzas Menu: Two-column Layout -->
+  <!-- Order Button -->
+  <div class="text-center mt-4">
+    <%= link_to "Place an Order", new_order_path, class: "btn btn-primary btn-lg" %>
+  </div>
+
+  <div class="menu-grid">
+    <!-- Vegetarian Pizzas -->
+    <div class="menu-card">
+      <h2 class="menu-title">🥗 Vegetarian Pizzas</h2>
+      <% @vegetarian_pizzas.each do |pizza| %>
+        <div class="menu-item">
+          <h4><%= pizza.name %></h4>
+          <% pizza.pizza_variants.each do |variant| %>
+            <p><strong><%= variant.size %></strong>: Rs. <%= variant.price %></p>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+
+    <!-- Non-Vegetarian Pizzas -->
+    <div class="menu-card">
+      <h2 class="menu-title">🍗 Non-Vegetarian Pizzas</h2>
+      <% @non_vegetarian_pizzas.each do |pizza| %>
+        <div class="menu-item">
+          <h4><%= pizza.name %></h4>
+          <% pizza.pizza_variants.each do |variant| %>
+            <p><strong><%= variant.size %></strong>: Rs. <%= variant.price %></p>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Toppings -->
+  <div class="menu-grid">
+    <div class="menu-card">
+      <h2 class="menu-title">🌱 Veg Toppings</h2>
+      <ul class="menu-list">
+        <% @veg_toppings.each do |topping| %>
+          <li><%= topping.name %> (Rs. <%= topping.price %>)</li>
+        <% end %>
+      </ul>
+    </div>
+    <div class="menu-card">
+      <h2 class="menu-title">🍖 Non-Veg Toppings</h2>
+      <ul class="menu-list">
+        <% @non_veg_toppings.each do |topping| %>
+          <li><%= topping.name %> (Rs. <%= topping.price %>)</li>
+        <% end %>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Crusts, Extra Cheese, and Sides (Three-Column Layout) -->
+  <div class="menu-grid-3">
+    <div class="menu-card">
+      <h2 class="menu-title">🥖 Types of Crust</h2>
+      <ul class="menu-list">
+        <% @crusts.each do |crust| %>
+          <li><%= crust.name %></li>
+        <% end %>
+      </ul>
+    </div>
+  
+    <div class="menu-card">
+      <h2 class="menu-title">🧀 Extra Cheese</h2>
+      <p><strong>Rs. <%= @extra_cheese.price if @extra_cheese %></strong></p>
+    </div>
+
+    <div class="menu-card">
+      <h2 class="menu-title">🍟 Sides</h2>
+      <ul class="menu-list">
+        <% @sides.each do |side| %>
+          <li><%= side.name %> (Rs. <%= side.price %>)</li>
+        <% end %>
+      </ul>
+    </div>
+  </div>
+</div>

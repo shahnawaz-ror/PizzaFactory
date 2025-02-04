@@ -1,0 +1,185 @@
+<h2>Create Order</h2>
+
+<%= form_with model: @order, local: true do |f| %>
+  <!-- Category selection -->
+  <h3>Select Category</h3>
+  <%= f.collection_select :category_id, Category.all, :id, :name, { prompt: "Select Category" }, { id:"category-select" } %>
+
+  <!-- Pizza selection -->
+  <h3>Select Pizza</h3>
+  <%= f.collection_select :pizza_id, Pizza.all, :id, ->(pizza){ "#{pizza.name} - Rs #{pizza.price}" }, { prompt: "Select Pizza" }, { id: "pizza-select" } %>
+
+  <!-- Size (Pizza Variant) selection -->
+  <h3>Select Size</h3>
+  <%= f.select :pizza_variant_id, [], { prompt: "Select Size" }, { id: "size-select" } %>
+
+  <!-- Crust selection -->
+  <h3>Select Crust</h3>
+  <%= f.collection_select :crust_id, Crust.all, :id, :name, { prompt: "Select Crust" }, { id: "crust-select" } %>
+
+  <!-- Toppings selection -->
+  <h3>Select Toppings</h3>
+  <%= f.collection_select :topping_ids, Topping.all, :id, ->(topping){ "#{topping.name} - Rs #{topping.price}" }, { prompt: "Select Toppings" }, { multiple: true, id: "topping-select" } %>
+
+  <!-- Side order selection -->
+  <h3>Select Side Order</h3>
+  <%= f.collection_select :side_ids, Side.all, :id, ->(side){ "#{side.name} - Rs #{side.price}" }, { prompt: "Select Side Order" }, { multiple: true, id: "side-select", name: "order[side_ids][]" } %>
+
+  <!-- Extra cheese option -->
+  <h3>Extra Cheese</h3>
+  <%= f.check_box :extra_cheese, { id: "order_extra_cheese" } %> Yes (Rs 35)
+
+  <!-- Hidden field for Total Price -->
+  <%= f.hidden_field :total_price, id: "order_total_price" %>
+
+  <!-- Show Total Amount -->
+  <div id="total-price" style="font-weight:bold; margin-top:1em;">Total: Rs 0</div>
+
+  <%= f.submit "Place Order" %>
+<% end %>
+
+<!-- Expose pricing data to JavaScript -->
+<script>
+  const toppingsData = <%= Topping.all.to_json(only: [:id, :price]) %>;
+  const sidesData = <%= Side.all.to_json(only: [:id, :price]) %>;
+</script>
+
+
+<script>
+document.addEventListener("turbo:load", function() {
+  const categorySelect = document.getElementById("category-select");
+  const pizzaSelect = document.getElementById("pizza-select");
+  const sizeSelect = document.getElementById("size-select");
+  const toppingSelect = document.getElementById("topping-select");
+  const crustSelect = document.getElementById("crust-select"); // Although crust is free, we listen to changes.
+  const sideSelect = document.getElementById("side-select");
+  const extraCheeseCheckbox = document.getElementById("order_extra_cheese");
+  const totalPriceEl = document.getElementById("total-price");
+  const totalPriceHidden = document.getElementById("order_total_price");
+
+  // Helper function to reset a dropdown to a default option.
+  function resetDropdown(dropdown, defaultText) {
+    dropdown.innerHTML = `<option value="">${defaultText}</option>`;
+  }
+
+  // Recalculate total price whenever a field changes.
+  function recalcTotal() {
+    let total = 0;
+
+    // (Pizza price is intentionally NOT added.)
+
+    // Add Pizza Variant price (extracted from the option text)
+    const selectedVariantOption = sizeSelect.options[sizeSelect.selectedIndex];
+    if (selectedVariantOption && selectedVariantOption.value) {
+      const match = selectedVariantOption.text.match(/Rs\s*(\d+(\.\d+)?)/);
+      if (match) {
+        total += parseFloat(match[1]);
+      }
+    }
+
+    
+    const selectedToppingOption = toppingSelect.options[toppingSelect.selectedIndex];
+    var regex = /^(.*?)\s*-\s*Rs\s*(\d+(\.\d+)?)$/;
+    if (selectedToppingOption && selectedToppingOption.value) {
+      const match = selectedToppingOption.text.match(regex);
+      if (match) {
+        total += parseFloat(match[2]);
+      }
+    }
+
+    <%# // Add Sides prices
+    if (sideSelect) {
+      Array.from(sideSelect.selectedOptions).forEach(option => {
+        if (option.value) {
+          const side = sidesData.find(s => s.id === parseInt(option.value));
+          if (side) {
+            total += parseFloat(side.price);
+          }
+        }
+      });
+    } %>
+
+    const selectedSideOption = sideSelect.options[sideSelect.selectedIndex];
+    var regex = (/Rs\s*(\d+(\.\d+)?)/);
+    if (selectedSideOption && selectedSideOption.value) {
+      const match = selectedSideOption.text.match(regex);
+      if (match) {
+        total += parseFloat(match[1]);
+      }
+    }
+
+    // Add Extra Cheese charge if checked
+    if (extraCheeseCheckbox && extraCheeseCheckbox.checked) {
+      total += 35;
+    }
+
+    // Update the display and the hidden field.
+    totalPriceEl.innerText = "Total: Rs " + total;
+    if(totalPriceHidden) {
+      totalPriceHidden.value = total;
+    }
+  }
+
+  // Listen for changes on fields that affect the total.
+  categorySelect.addEventListener("change", function() {
+    // Get the selected option's text for filtering via AJAX
+    const categoryText = this.options[this.selectedIndex].text;
+    
+    // Reset dependent dropdowns
+    resetDropdown(pizzaSelect, "Select Pizza");
+    resetDropdown(sizeSelect, "Select Size");
+    resetDropdown(toppingSelect, "Select Toppings");
+
+    // Fetch pizzas based on category text
+    fetch(`/pizzas?category=${encodeURIComponent(categoryText)}`)
+      .then(response => response.json())
+      .then(data => {
+        data.forEach(pizza => {
+          const option = new Option(`${pizza.name} - Rs ${pizza.price}`, pizza.id);
+          pizzaSelect.add(option);
+        });
+        recalcTotal();
+      })
+      .catch(error => console.error("Error fetching pizzas:", error));
+
+    // Fetch toppings based on category text
+    fetch(`/toppings?category=${encodeURIComponent(categoryText)}`)
+      .then(response => response.json())
+      .then(data => {
+        data.forEach(topping => {
+          const option = new Option(`${topping.name} - Rs ${topping.price}`, topping.id);
+          toppingSelect.add(option);
+        });
+        recalcTotal();
+      })
+      .catch(error => console.error("Error fetching toppings:", error));
+  });
+
+  pizzaSelect.addEventListener("change", function() {
+    resetDropdown(sizeSelect, "Select Size");
+
+    const pizzaId = this.value;
+    if (pizzaId) {
+      fetch(`/pizza_variants?pizza_id=${pizzaId}`)
+        .then(response => response.json())
+        .then(data => {
+          data.forEach(variant => {
+            const option = new Option(`${variant.size} - Rs ${variant.price}`, variant.id);
+            sizeSelect.add(option);
+          });
+          recalcTotal();
+        })
+        .catch(error => console.error("Error fetching pizza sizes:", error));
+    } else {
+      recalcTotal();
+    }
+  });
+
+  // When other fields change, recalc the total.
+  sizeSelect.addEventListener("change", recalcTotal);
+  crustSelect.addEventListener("change", recalcTotal);
+  toppingSelect.addEventListener("change", recalcTotal);
+  sideSelect.addEventListener("change", recalcTotal);
+  extraCheeseCheckbox.addEventListener("change", recalcTotal);
+});
+</script>

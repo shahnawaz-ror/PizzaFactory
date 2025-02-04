@@ -1,0 +1,2 @@
+class SidesController < ApplicationController
+end
